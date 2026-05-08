@@ -709,8 +709,8 @@ function StorePicker({
   };
 
   return (
-    <div className="section">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
         <h3 style={{ margin: 0 }}>My stores</h3>
         <button
           type="button"
@@ -722,7 +722,7 @@ function StorePicker({
       </div>
 
       {stores.length === 0 ? (
-        <p className="muted" style={{ marginTop: 8 }}>
+        <p className="muted" style={{ marginBottom: 18 }}>
           You haven't created a store yet. Click <strong>+ Add store</strong> to get listed.
         </p>
       ) : (
@@ -734,24 +734,21 @@ function StorePicker({
               className="card"
               onClick={() => onSelect(s.id)}
               style={{
-                marginTop: 12,
                 cursor: 'pointer',
-                borderColor: active ? 'var(--accent-strong)' : undefined,
-                boxShadow: active ? '0 0 0 2px var(--accent-strong)' : undefined
+                borderColor: active ? 'var(--accent-strong)' : undefined
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <strong>{s.storeName}</strong>
-                  {s.address && <div className="muted" style={{ fontSize: 13 }}>{s.address}</div>}
+                  <h3 style={{ margin: 0 }}>{s.storeName}</h3>
+                  {s.address && <div className="muted">{s.address}</div>}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                   {statusBadge(s)}
                   <button
                     type="button"
                     className={active ? '' : 'secondary'}
                     onClick={(e) => { e.stopPropagation(); onSelect(s.id); }}
-                    style={{ padding: '4px 10px', fontSize: 13 }}
                   >
                     {active ? 'Editing' : 'Edit'}
                   </button>
@@ -761,7 +758,7 @@ function StorePicker({
           );
         })
       )}
-    </div>
+    </>
   );
 }
 

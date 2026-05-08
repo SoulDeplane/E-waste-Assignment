@@ -1,7 +1,7 @@
 # Software Requirements Specification — E-Waste Platform
 
 > **Living document.** Update this file every time a new requirement is added, changed, or removed.
-> Last updated: 2026-05-08 (added Recycler-initiated Connect requirement, F-CON-01..05).
+> Last updated: 2026-05-08 (multi-store per recycler — F-REC-01 amended, F-REC-08..10 added; F-USR-10 added for contact confirmation prompt).
 
 ---
 
@@ -83,13 +83,16 @@ The platform exists to:
 #### 2.1.3 Recycler — Store Management
 | ID | Requirement | Status | Notes |
 |---|---|---|---|
-| F-REC-01 | A recycler can create / update one store (1:1 with their account). | Implemented | `POST /api/recycler/store` |
+| F-REC-01 | A recycler can register **one or more** stores. The relationship is 1:N (a `User` with role `recycler` may own multiple `Store` rows). | Implemented | Stakeholder requirement (multi-store per recycler) |
 | F-REC-02 | Store fields: name, address, latitude, longitude, accepted categories (≥ 1), description, year established, licence number, website, open days / time, service mode (drop-off / pickup / both), pickup radius, payment policy (pays / free / fee). | Implemented | |
 | F-REC-03 | The "Languages spoken" field has been removed from the form. | Implemented | Stakeholder requirement; existing language data is preserved in DB / detail view. |
 | F-REC-04 | The recycler can use the browser geolocation API to autofill latitude / longitude. | Implemented | `getCurrentPosition()` |
-| F-REC-05 | Store starts as `pending`. Changing the location resets it to `pending` and clears the prior approval. | Implemented | |
-| F-REC-06 | The recycler can upload a store logo (jpg / png / webp, max 2 MB). | Implemented | `POST /api/recycler/store/logo` |
-| F-REC-07 | The recycler dashboard shows: contacts received, pickups (status-filtered) with action buttons, reviews of their store. | Implemented | |
+| F-REC-05 | Each new store starts as `pending`. Changing a store's location resets that store (and only that store) to `pending` and clears its prior approval. | Implemented | Per-store, sibling stores untouched |
+| F-REC-06 | The recycler can upload a store logo (jpg / png / webp, max 2 MB) per store. | Implemented | `POST /api/recycler/stores/:id/logo`; logo file is named after the store id, so siblings cannot collide. |
+| F-REC-07 | The recycler dashboard shows: a card list of all owned stores plus an `+ Add store` button, and — scoped to the currently selected store — contacts received, pickups (status-filtered) with action buttons, and reviews. | Implemented | Selecting a different card reloads contacts / reviews / pickups for that store. |
+| F-REC-08 | Recycler-side endpoints are all `:storeId`-scoped and verify ownership on every request (`404 Store not found` on mismatch — no existence leak). | Implemented | `assertStoreOwnership` in `recycler.controller.js` |
+| F-REC-09 | Each new store from the same recycler is approved independently by an admin (no trust-shortcut). Approving one store does not affect any sibling store's status. | Implemented | Stakeholder decision |
+| F-REC-10 | The recycler dashboard hides the Pickups / Reviews / Contacts sections while creating a brand-new store (no `storeId` to query yet); they appear as soon as the store is saved. | Implemented | UX guard against requests with `storeId='new'` |
 
 #### 2.1.4 User — Store Discovery & Contact
 | ID | Requirement | Status | Notes |
@@ -103,15 +106,16 @@ The platform exists to:
 | F-USR-07 | **Users with an unverified email cannot contact a store.** Server returns `403 email_unverified`. The Contact button is disabled with an explanatory tooltip and the user dashboard shows a "Verify your email" banner with a Resend button. | Implemented | Stakeholder requirement (re-emphasised) |
 | F-USR-08 | The dashboard refreshes `/api/auth/me` on mount so a verification clicked in another tab is reflected without re-login. | Implemented | |
 | F-USR-09 | Contact list (`Contacted` set) is shared between revoke / contact actions and persists via `GET /api/stores/contacted`. | Implemented | |
+| F-USR-10 | Clicking **Contact** opens a `window.confirm` prompt explaining what info (name, email, phone) will be shared with the recycler and that the contact can be revoked until the recycler connects back. The API call is only fired if the user confirms. | Implemented | Stakeholder requirement |
 
 #### 2.1.4a Recycler-Initiated Connection (Connect-back)
 | ID | Requirement | Status | Notes |
 |---|---|---|---|
 | F-CON-01 | After a user has contacted a store, the recycler sees a **Connect** button next to that contact in the recycler dashboard's Contacts table. | Implemented | Stakeholder requirement |
-| F-CON-02 | Clicking **Connect** marks `Contact.recyclerConnectedAt = now()`. The button is replaced with a `Connected` badge plus the "Sent {date}" label. | Implemented | `POST /api/recycler/contacts/:id/connect` |
+| F-CON-02 | Clicking **Connect** marks `Contact.recyclerConnectedAt = now()`. The button is replaced with a `Connected` badge plus the "Sent {date}" label. | Implemented | `POST /api/recycler/stores/:storeId/contacts/:contactId/connect` |
 | F-CON-03 | When `recyclerConnectedAt` is set, the user sees the message **"Recycler wants to connect"** on that store's card (replacing the `Contacted` + `Revoke contact` controls). | Implemented | Stakeholder requirement |
 | F-CON-04 | After the recycler has connected, the user **cannot revoke** the contact. Server returns `400 connection_locked`; the UI hides the Revoke button and shows an explanatory toast if invoked otherwise. | Implemented | Stakeholder requirement |
-| F-CON-05 | The connect endpoint is recycler-only and verifies that the contact belongs to the recycler's store (`403 Forbidden` otherwise). Repeated connects are idempotent (returns `already: true`). | Implemented | |
+| F-CON-05 | The connect endpoint is recycler-only and verifies that both the `:storeId` belongs to the recycler **and** the `:contactId` belongs to that store (`404 Store not found` / `404 Contact not found` otherwise — ownership mismatches return 404 to avoid existence leaks). Repeated connects are idempotent (returns `already: true`). | Implemented | |
 
 #### 2.1.5 Pickup Scheduling
 | ID | Requirement | Status | Notes |
@@ -122,7 +126,7 @@ The platform exists to:
 | F-PIC-04 | The user can upload one optional photo per item while the pickup is still `requested`. | Implemented | `POST /api/pickups/:id/items/:itemId/photo` |
 | F-PIC-05 | Status flow is server-enforced: `requested → confirmed | declined`, `confirmed → completed`, and the user can `cancel` while `requested` or `confirmed`. | Implemented | |
 | F-PIC-06 | The user dashboard shows "My pickups" with a status badge, item summary, total estimated weight, cancel and "Leave a review" actions when applicable. | Implemented | |
-| F-PIC-07 | The recycler dashboard shows pickups for their store, filterable by status, with Confirm / Decline / Mark completed buttons. | Implemented | `GET /api/pickups/store`, `PATCH /api/pickups/:id/status` |
+| F-PIC-07 | The recycler dashboard shows pickups for the selected store, filterable by status, with Confirm / Decline / Mark completed buttons. | Implemented | `GET /api/pickups/store?storeId=&status=` (storeId required, ownership enforced); `PATCH /api/pickups/:id/status` (ownership via `pickup.store.recyclerId === req.user.id`) |
 | F-PIC-08 | Status transitions trigger emails to the user (`notifyPickupStatus`); creation triggers an email to the recycler (`notifyPickupRequested`). | Implemented | |
 | F-PIC-09 | The legacy `Contact` action is **kept alongside** the new Pickup flow (lightweight "express interest" + heavier scheduled pickup). | Implemented | Stakeholder decision |
 
@@ -133,7 +137,7 @@ The platform exists to:
 | F-REV-02 | Reviewing a non-completed pickup or a pickup that already has a review returns `400` / `409` respectively. | Implemented | |
 | F-REV-03 | Store cards and the store-detail modal show `★ avgRating (count)` when ≥ 1 review exists. | Implemented | `GET /api/stores` returns aggregates |
 | F-REV-04 | The store-detail modal embeds a paginated review list. | Implemented | `GET /api/stores/:id/reviews` |
-| F-REV-05 | The recycler dashboard surfaces incoming reviews on their store. | Implemented | `GET /api/recycler/reviews` |
+| F-REV-05 | The recycler dashboard surfaces incoming reviews scoped to the selected store. | Implemented | `GET /api/recycler/stores/:id/reviews` |
 
 #### 2.1.7 Admin Moderation & Analytics
 | ID | Requirement | Status | Notes |
@@ -195,7 +199,7 @@ The platform exists to:
 **Enums:** `Role`, `StoreStatus`, `ServiceMode`, `PaymentPolicy`, `PickupStatus`, `ItemCondition`, `EwasteCategory`.
 
 **Indexes (representative):**
-- `Store.status`
+- `Store.status`, `Store.recyclerId` (non-unique — supports the multi-store-per-recycler `findMany` lookup)
 - `Pickup(storeId, status)`, `Pickup(userId, status)`, `Pickup.scheduledDate`
 - `PickupItem.pickupId`
 - `Review.storeId`, `Review.userId`
@@ -207,6 +211,7 @@ The platform exists to:
 2. `20260507214755_pickups_reviews_auth` — adds Pickup / PickupItem / Review / token tables and `User.emailVerifiedAt`.
 3. `20260508002136_add_profile_pic` — adds `User.profilePicUrl`.
 4. `20260508011521_recycler_connect_request` — adds `Contact.recyclerConnectedAt`.
+5. `20260508080214_multi_store_per_recycler` — drops `Store.recyclerId`'s unique constraint and FK, recreates as a non-unique index, and re-adds the FK so a recycler may own many stores. The `User.store` (1:1) relation becomes `User.stores` (1:N).
 
 ### 2.4 Hardware Requirements
 
@@ -309,18 +314,33 @@ The platform exists to:
 | TC-USR-01 | Visit `/user/dashboard` with location allowed. | Stores listed in ascending distance order, ≤ radius. | Pass |
 | TC-USR-02 | Apply category filter. | Only stores with that category remain. | Pass |
 | TC-USR-03 | As **unverified** user, attempt to contact a store. | Contact button is **disabled** with tooltip; banner shows; if forced via API, server returns `403 email_unverified`. | Pass |
-| TC-USR-04 | As verified user, click Contact. | `200`, badge flips to `Contacted`, recycler receives email. | Pass |
+| TC-USR-04 | As verified user, click Contact. | A `window.confirm` opens explaining what info will be shared; clicking OK fires `200`, badge flips to `Contacted`, recycler receives email. Clicking Cancel makes no API call. | Pass |
 | TC-USR-05 | Click "Revoke contact" on a contacted store. | `DELETE /api/stores/:id/contact` returns `200`, badge disappears, button reverts. | Pass |
 | TC-USR-06 | Click "Resend verification email" on the banner. | `POST /api/auth/resend-verification` returns `200`; second click within 60 s shows the rate-limit toast. | Pass |
 | TC-USR-07 | Verify email in another tab, then reload dashboard. | Banner disappears; Contact button re-enables. | Pass |
 
+#### 3.2.2a Multi-Store per Recycler
+| TC | Steps | Expected | Status |
+|---|---|---|---|
+| TC-REC-01 | As a recycler with 0 stores, hit `GET /api/recycler/stores`. | `200 { stores: [] }`. The dashboard shows the empty card list with `+ Add store`. | Pass |
+| TC-REC-02 | `POST /api/recycler/stores` twice with valid bodies. | Two `Store` rows are created with the same `recyclerId`, each `status='pending'`. | Pass |
+| TC-REC-03 | `GET /api/recycler/stores`. | Returns both rows, ordered by `createdAt asc`. | Pass |
+| TC-REC-04 | `PUT /api/recycler/stores/:id` with a different lat/lng for store A. | Store A's `status` flips to `pending`, `approvedAt`/`approvedById` cleared; store B is untouched. | Pass |
+| TC-REC-05 | `GET /api/recycler/stores/:id` for a store id that belongs to another recycler. | `404 Store not found` (no existence leak). | Pass |
+| TC-REC-06 | `POST /api/recycler/stores/:id/logo` for a store the requester does not own. | `404 Store not found`; the temp upload is unlinked from disk. | Pass |
+| TC-REC-07 | Upload a logo on store A, then on store B. | Two distinct files at `/uploads/logos/{storeId}.<ext>`; neither overwrites the other. | Pass |
+| TC-REC-08 | As an admin, approve only store A. | Only store A goes `approved`; store B remains `pending`. | Pass |
+| TC-REC-09 | Frontend: create one store, then click `+ Add store`, fill the blank form, submit. | A second card appears in the picker; selecting it loads its form; switching back to the first reloads its form, contacts, reviews, and pickups. | Pass |
+| TC-REC-10 | `GET /api/pickups/store` without a `storeId` query param. | `400 storeId is required`. | Pass |
+| TC-REC-11 | `GET /api/pickups/store?storeId=N` where N is owned by another recycler. | `404 Store not found`. | Pass |
+
 #### 3.2.3a Recycler Connect-back
 | TC | Steps | Expected | Status |
 |---|---|---|---|
-| TC-CON-01 | As verified user, contact a store. As recycler, click **Connect** in the Contacts row. | `POST /api/recycler/contacts/:id/connect` returns `200`; the Contacts row flips to `Connected` + "Sent {date}". | Pass |
+| TC-CON-01 | As verified user, contact a store. As recycler, click **Connect** in the Contacts row. | `POST /api/recycler/stores/:storeId/contacts/:contactId/connect` returns `200`; the Contacts row flips to `Connected` + "Sent {date}". | Pass |
 | TC-CON-02 | As the user, reload the dashboard. | The store card now shows the message **"Recycler wants to connect"**; Revoke contact button is gone. | Pass |
 | TC-CON-03 | As the user, attempt `DELETE /api/stores/:id/contact` directly (e.g., via curl) on a connected store. | `400 { error: "connection_locked" }`. | Pass |
-| TC-CON-04 | As recycler B (with a different store), `POST /api/recycler/contacts/:id/connect` for a contact owned by recycler A's store. | `403 Forbidden`. | Pass |
+| TC-CON-04 | As recycler B (with a different store), `POST /api/recycler/stores/:storeId/contacts/:contactId/connect` for a contact owned by recycler A's store. | `404 Store not found` (ownership check returns 404 to avoid existence leak). | Pass |
 | TC-CON-05 | Click **Connect** twice in rapid succession. | Second call is idempotent (`200` with `already: true`); only one `recyclerConnectedAt` timestamp is set. | Pass |
 
 #### 3.2.4 Pickups
@@ -356,10 +376,10 @@ The platform exists to:
 ## 4.0 Result
 
 ### 4.1 Status
-The project is a working MVP that fulfils every requirement listed in §2 with the exceptions called out in §1.3. All three planned deliverables (Pickups + Items, Reviews + Analytics, Auth completeness) plus the subsequent stakeholder requests (revoke contact, profile button + dropdown, avatar upload, profile editor, password visibility toggle, centred buttons, `...` style, soft-verification, verified-email gate on contact, language field removal, recycler-initiated Connect-back with revoke lock) have been implemented and manually verified.
+The project is a working MVP that fulfils every requirement listed in §2 with the exceptions called out in §1.3. All three planned deliverables (Pickups + Items, Reviews + Analytics, Auth completeness) plus the subsequent stakeholder requests (revoke contact, profile button + dropdown, avatar upload, profile editor, password visibility toggle, centred buttons, `...` style, soft-verification, verified-email gate on contact, language field removal, recycler-initiated Connect-back with revoke lock, **multi-store per recycler with per-store moderation**, **contact-confirmation prompt**) have been implemented and manually verified.
 
 ### 4.2 What was delivered (high-level)
-- 3 Prisma migrations producing 10 tables and 7 enums.
+- 5 Prisma migrations producing 10 tables and 7 enums.
 - 6 backend route files mounted under `/api/{auth,recycler,admin,stores,pickups,reviews}`.
 - 9 frontend route pages (auth flows + 3 role dashboards).
 - 14 React components (Avatar, Nav, ProfileEditModal, PasswordInput, PickupForm, ReviewForm, ReviewList, RoleGuard, StoreCard, StoreDetail, ThemeProvider, Toast, plus existing).

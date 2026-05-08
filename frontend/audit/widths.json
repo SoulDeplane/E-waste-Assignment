@@ -1,0 +1,128 @@
+[
+  {
+    "role": "admin",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "container": {
+      "width": 1100,
+      "maxWidth": "1100px",
+      "padding": "24px 16px 48px",
+      "marginLeft": "170px",
+      "marginRight": "170px",
+      "bodyFontSize": "15px"
+    },
+    "sections": [
+      {
+        "idx": 0,
+        "width": 1068,
+        "padding": "20px"
+      },
+      {
+        "idx": 1,
+        "width": 1068,
+        "padding": "20px"
+      }
+    ],
+    "firstCard": {
+      "width": 196,
+      "padding": "18px",
+      "border": "1px solid rgb(209, 217, 230)",
+      "marginBottom": "0px",
+      "h3FontSize": null,
+      "h3FontWeight": null,
+      "mutedFontSize": "12px",
+      "depthFromContainer": 3
+    }
+  },
+  {
+    "role": "recycler",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "container": {
+      "width": 1100,
+      "maxWidth": "1100px",
+      "padding": "24px 16px 48px",
+      "marginLeft": "170px",
+      "marginRight": "170px",
+      "bodyFontSize": "15px"
+    },
+    "sections": [
+      {
+        "idx": 0,
+        "width": 1068,
+        "padding": "20px"
+      },
+      {
+        "idx": 1,
+        "width": 1068,
+        "padding": "20px"
+      },
+      {
+        "idx": 2,
+        "width": 1068,
+        "padding": "20px"
+      },
+      {
+        "idx": 3,
+        "width": 1068,
+        "padding": "20px"
+      }
+    ],
+    "firstCard": {
+      "width": 1068,
+      "padding": "18px",
+      "border": "1px solid rgb(21, 128, 61)",
+      "marginBottom": "14px",
+      "h3FontSize": "17px",
+      "h3FontWeight": "600",
+      "mutedFontSize": "13px",
+      "depthFromContainer": 1
+    }
+  },
+  {
+    "role": "user",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "container": {
+      "width": 1100,
+      "maxWidth": "1100px",
+      "padding": "24px 16px 48px",
+      "marginLeft": "170px",
+      "marginRight": "170px",
+      "bodyFontSize": "15px"
+    },
+    "sections": [
+      {
+        "idx": 0,
+        "width": 1068,
+        "padding": "20px"
+      },
+      {
+        "idx": 1,
+        "width": 1068,
+        "padding": "20px"
+      },
+      {
+        "idx": 2,
+        "width": 1068,
+        "padding": "20px"
+      }
+    ],
+    "firstCard": {
+      "width": 1068,
+      "padding": "18px",
+      "border": "1px solid rgb(209, 217, 230)",
+      "marginBottom": "14px",
+      "h3FontSize": "17px",
+      "h3FontWeight": "600",
+      "mutedFontSize": "13px",
+      "depthFromContainer": 1
+    }
+  }
+]

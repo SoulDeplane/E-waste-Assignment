@@ -37,10 +37,10 @@ npm run dev                # http://localhost:3000
 ```
 
 ## Roles & flow
-- **Recycler** registers (auto-logged-in) → adds a store profile (lat / lng + categories + hours + service mode + payment policy) → status `Pending` → admin approves → store goes `Live`. Recycler dashboard shows three sections: incoming Pickups (with Confirm / Decline / Mark completed), Reviews on their store, and lightweight Contacts received.
-- **Admin** logs in (seeded) → `/admin/dashboard` → Analytics panel + per-status moderation queue → approve or reject (with optional reason). Approval emails the recycler.
+- **Recycler** registers (auto-logged-in) → adds **one or more** store profiles (each: lat / lng + categories + hours + service mode + payment policy) → every new store starts `Pending` and is approved independently by an admin. The recycler dashboard lists all of their stores as selectable cards with an **+ Add store** button; the form, Pickups, Reviews, and Contacts all scope to whichever card is selected.
+- **Admin** logs in (seeded) → `/admin/dashboard` → Analytics panel + per-status moderation queue → approve or reject (with optional reason). Each store from a multi-store recycler shows up as its own pending row. Approval emails the recycler.
 - **User** registers (auto-logged-in, verification email sent) → `/user/dashboard` → grants location → sees approved stores sorted by distance, filterable by radius and category. From a store they can:
-  - **Contact** (lightweight expression of interest, revocable) — *requires a verified email*.
+  - **Contact** (lightweight expression of interest, revocable; a confirmation prompt explains what info will be shared) — *requires a verified email*.
   - **Schedule pickup** with item-level inventory (category, quantity, weight, condition, optional photo).
   - **Leave a review** after a pickup is marked `Completed`.
 
@@ -80,14 +80,17 @@ npm run dev                # http://localhost:3000
 | POST | `/api/auth/logout` | public (with refresh token in body) |
 
 ### Recycler
+All endpoints are scoped to a specific store the recycler owns; ownership is verified on every request.
 | Method | Path | Role |
 |---|---|---|
-| POST | `/api/recycler/store` | recycler |
-| GET | `/api/recycler/store` | recycler |
-| POST | `/api/recycler/store/logo` | recycler (multipart `logo`) |
-| GET | `/api/recycler/contacts` | recycler |
-| POST | `/api/recycler/contacts/:id/connect` | recycler |
-| GET | `/api/recycler/reviews` | recycler |
+| GET | `/api/recycler/stores` | recycler |
+| POST | `/api/recycler/stores` | recycler |
+| GET | `/api/recycler/stores/:id` | recycler |
+| PUT | `/api/recycler/stores/:id` | recycler |
+| POST | `/api/recycler/stores/:id/logo` | recycler (multipart `logo`) |
+| GET | `/api/recycler/stores/:id/contacts` | recycler |
+| POST | `/api/recycler/stores/:id/contacts/:contactId/connect` | recycler |
+| GET | `/api/recycler/stores/:id/reviews` | recycler |
 
 ### Admin
 | Method | Path | Role |
@@ -114,7 +117,7 @@ npm run dev                # http://localhost:3000
 | GET | `/api/pickups/:id` | user (own) or recycler (own store) |
 | PATCH | `/api/pickups/:id/cancel` | user |
 | POST | `/api/pickups/:id/items/:itemId/photo` | user (own, while requested) |
-| GET | `/api/pickups/store?status=` | recycler |
+| GET | `/api/pickups/store?storeId=&status=` | recycler |
 | PATCH | `/api/pickups/:id/status` | recycler |
 
 ### Reviews
