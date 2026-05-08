@@ -1,0 +1,222 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  user
+  recycler
+  admin
+}
+
+enum StoreStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ServiceMode {
+  dropoff
+  pickup
+  both
+}
+
+enum PaymentPolicy {
+  pays
+  free
+  fee
+}
+
+enum PickupStatus {
+  requested
+  confirmed
+  declined
+  completed
+  cancelled
+}
+
+enum ItemCondition {
+  working
+  broken
+  unknown
+}
+
+enum EwasteCategory {
+  laptops
+  phones
+  batteries
+  appliances
+  cables
+  monitors
+  other
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String    @db.VarChar(120)
+  email           String    @unique @db.VarChar(190)
+  passwordHash    String    @db.VarChar(255)
+  role            Role
+  phone           String?   @db.VarChar(20)
+  profilePicUrl   String?   @db.VarChar(255)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  stores         Store[]   @relation("RecyclerStore")
+  contactsMade   Contact[] @relation("UserContacts")
+  approvedStores Store[]   @relation("AdminApprovals")
+
+  pickups                 Pickup[]
+  reviews                 Review[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  refreshTokens           RefreshToken[]
+}
+
+model Store {
+  id         Int         @id @default(autoincrement())
+  recyclerId Int
+  recycler   User        @relation("RecyclerStore", fields: [recyclerId], references: [id], onDelete: Cascade)
+  storeName  String      @db.VarChar(150)
+  address    String?     @db.VarChar(255)
+  latitude   Decimal     @db.Decimal(10, 7)
+  longitude  Decimal     @db.Decimal(10, 7)
+  status     StoreStatus @default(pending)
+  categories Json
+
+  description     String?        @db.VarChar(500)
+  yearEstablished Int?
+  logoUrl         String?        @db.VarChar(255)
+  licenceNumber   String?        @db.VarChar(120)
+  website         String?        @db.VarChar(255)
+  openDays        Json?
+  openTime        String?        @db.VarChar(5)
+  closeTime       String?        @db.VarChar(5)
+  serviceMode     ServiceMode?
+  pickupRadiusKm  Int?
+  paymentPolicy   PaymentPolicy?
+  languages       Json?
+
+  approvedById Int?
+  approvedBy   User?     @relation("AdminApprovals", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  rejectReason String?   @db.VarChar(255)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  contacts Contact[]
+  pickups  Pickup[]
+  reviews  Review[]
+
+  @@index([status])
+  @@index([recyclerId])
+}
+
+model Contact {
+  id                  Int       @id @default(autoincrement())
+  userId              Int
+  user                User      @relation("UserContacts", fields: [userId], references: [id], onDelete: Cascade)
+  storeId             Int
+  store               Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  status              String    @default("contacted") @db.VarChar(20)
+  recyclerConnectedAt DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@unique([userId, storeId])
+}
+
+model Pickup {
+  id            Int          @id @default(autoincrement())
+  userId        Int
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId       Int
+  store         Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  scheduledDate DateTime     @db.Date
+  timeSlot      String       @db.VarChar(20)
+  address       String       @db.VarChar(255)
+  notes         String?      @db.VarChar(500)
+  status        PickupStatus @default(requested)
+  confirmedAt   DateTime?
+  completedAt   DateTime?
+  cancelReason  String?      @db.VarChar(255)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  items  PickupItem[]
+  review Review?
+
+  @@index([storeId, status])
+  @@index([userId, status])
+  @@index([scheduledDate])
+}
+
+model PickupItem {
+  id                Int            @id @default(autoincrement())
+  pickupId          Int
+  pickup            Pickup         @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+  category          EwasteCategory
+  quantity          Int            @default(1)
+  estimatedWeightKg Decimal?       @db.Decimal(6, 2)
+  condition         ItemCondition?
+  photoUrl          String?        @db.VarChar(255)
+  notes             String?        @db.VarChar(255)
+
+  @@index([pickupId])
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  pickupId  Int      @unique
+  pickup    Pickup   @relation(fields: [pickupId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId   Int
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String?  @db.VarChar(1000)
+  createdAt DateTime @default(now())
+
+  @@index([storeId])
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique @db.VarChar(128)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique @db.VarChar(128)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @db.VarChar(128)
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?   @db.VarChar(255)
+  createdAt DateTime  @default(now())
+
+  @@index([userId, revokedAt])
+}
